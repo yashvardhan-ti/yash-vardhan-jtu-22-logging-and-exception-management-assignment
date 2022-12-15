@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(filename='main.log', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+custom_logger = logging.basicConfig(filename='fast_api_als.log', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 @app.get("/")
 def root():
@@ -37,5 +37,5 @@ def root():
 def ping():
     start = time.process_time()
     time_taken = (time.process_time() - start) * 1000
-    logging.info(f'The response time of ping() function is {time_taken}')
+    custom_logger.info(f'The response time of ping() function is {time_taken}')
     return {f"Ping with response time {time_taken} ms"}
