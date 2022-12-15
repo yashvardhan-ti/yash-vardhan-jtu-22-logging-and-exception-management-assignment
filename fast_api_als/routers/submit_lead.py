@@ -52,6 +52,12 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
     # check if xml was not parsable, if not return
     if not obj:
         provider = db_helper_session.get_api_key_author(apikey)
+        try:
+            logging.info(f'The provider result from get_api_key_author is: {provider}')
+        except Exception as e:
+            logging.error(f'provider could not be fetched from get_api_key_author')
+            raise e
+        logging.info(f'provider api fetched successfully!')
         obj = {
             'provider': {
                 'service': provider
@@ -213,6 +219,12 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
             }
         }
         res = sqs_helper_session.send_message(message)
+        try:
+            res = sqs_helper_session.send_message(message)
+        except Exception as expt:
+            logging.error(f'message could not be sent!')
+            raise expt
+        logging.info(f'message sent successfully!')
 
     else:
         message = {
@@ -227,6 +239,12 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
             }
         }
         res = sqs_helper_session.send_message(message)
+        try:
+            res = sqs_helper_session.send_message(message)
+        except Exception as expt:
+            logging.error(f'message could not be sent!')
+            raise expt
+        logging.info(f'message sent successfully!')
     time_taken = (int(time.time() * 1000.0) - start)
 
     response_message = f"{result} Response Time : {time_taken} ms"
