@@ -51,8 +51,8 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
 
     # check if xml was not parsable, if not return
     if not obj:
-        provider = db_helper_session.get_api_key_author(apikey)
         try:
+            provider = db_helper_session.get_api_key_author(apikey)
             logging.info(f'The provider result from get_api_key_author is: {provider}')
         except Exception as e:
             logging.error(f'provider could not be fetched from get_api_key_author')
@@ -218,7 +218,6 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
                 'model': model
             }
         }
-        res = sqs_helper_session.send_message(message)
         try:
             res = sqs_helper_session.send_message(message)
         except Exception as expt:
@@ -238,7 +237,6 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
                 'response': response_body['status']
             }
         }
-        res = sqs_helper_session.send_message(message)
         try:
             res = sqs_helper_session.send_message(message)
         except Exception as expt:
