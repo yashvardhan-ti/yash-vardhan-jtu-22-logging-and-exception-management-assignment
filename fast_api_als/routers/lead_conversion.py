@@ -5,6 +5,7 @@ import time
 
 from fastapi import Request
 from starlette import status
+from ..main import custom_logger
 
 from fast_api_als.database.db_helper import db_helper_session
 from fast_api_als.quicksight.s3_helper import s3_helper_client
@@ -17,7 +18,7 @@ router = APIRouter()
 write proper logging and exception handling
 """
 
-logging.basicConfig(filename='lead_conversion.log', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+logger = custom_logger.getLogger(__name__)
 
 def get_quicksight_data(lead_uuid, item):
     """
@@ -39,7 +40,7 @@ def get_quicksight_data(lead_uuid, item):
         "3pl": item.get('3pl', 'unknown'),
         "oem_responded": 1
     }
-    logging.info(f'created the lead converted data for lead_uuid: {lead_uuid}')
+    logger.info(f'created the lead converted data for lead_uuid: {lead_uuid}')
     return data, f"{item['make']}/1_{int(time.time())}_{lead_uuid}"
 
 

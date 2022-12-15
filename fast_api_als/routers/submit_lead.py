@@ -8,6 +8,8 @@ from fastapi import Request, Depends
 from fastapi.security.api_key import APIKey
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from ..main import custom_logger
+
 from fastapi import HTTPException
 
 from fast_api_als.services.authenticate import get_api_key
@@ -24,6 +26,7 @@ from fast_api_als.quicksight.s3_helper import s3_helper_client
 from fast_api_als.utils.sqs_utils import sqs_helper_session
 
 router = APIRouter()
+logger = custom_logger.getLogger(__main__)
 
 """
 Add proper logging and exception handling.
@@ -32,8 +35,6 @@ keep in mind:
 You as a developer has to find how much time each part of code takes.
 you will get the idea about the part when you go through the code.
 """
-
-logging.basicConfig(filename='submit_lead.log', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 @router.post("/submit/")
 async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
@@ -53,11 +54,11 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
     if not obj:
         try:
             provider = db_helper_session.get_api_key_author(apikey)
-            logging.info(f'The provider result from get_api_key_author is: {provider}')
+            logger.info(f'The provider result from get_api_key_author is: {provider}')
         except Exception as e:
-            logging.error(f'provider could not be fetched from get_api_key_author')
+            logger.error(f'provider could not be fetched from get_api_key_author')
             raise e
-        logging.info(f'provider api fetched successfully!')
+        logger.info(f'provider api fetched successfully!')
         obj = {
             'provider': {
                 'service': provider
@@ -65,7 +66,7 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
         }
         item, path = create_quicksight_data(obj, 'unknown_hash', 'REJECTED', '1_INVALID_XML', {})
         s3_helper_client.put_file(item, path)
-        logging.error(f'error occured while parsing {apikey}')
+        logger.error(f'error occured while parsing {apikey}')
         return {
             "status": "REJECTED",
             "code": "1_INVALID_XML",
@@ -81,7 +82,7 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
     if not validation_check:
         item, path = create_quicksight_data(obj['adf']['prospect'], lead_hash, 'REJECTED', validation_code, {})
         s3_helper_client.put_file(item, path)
-        logging.error(f'Rejected validation_code: {validation_code}')
+        logger.error(f'Rejected validation_code: {validation_code}')
         return {
             "status": "REJECTED",
             "code": validation_code,
@@ -107,13 +108,13 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
         for future in as_completed(futures):
             result = future.result()
             if result.get('Duplicate_Api_Call', {}).get('status', False):
-                logging.error(f'Duplicate API Call')
+                logger.error(f'Duplicate API Call')
                 return {
                     "status": f"Already {result['Duplicate_Api_Call']['response']}",
                     "message": "Duplicate Api Call"
                 }
             if result.get('Duplicate_Lead', False):
-                logging.error(f'Duplicate Lead')
+                logger.error(f'Duplicate Lead')
                 return {
                     "status": "REJECTED",
                     "code": "12_DUPLICATE",
@@ -122,14 +123,14 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
             if "fetch_oem_data" in result:
                 fetched_oem_data = result['fetch_oem_data']
     if fetched_oem_data == {}:
-        logging.error(f'OEM Data not found, fetched_oem_data was empty')
+        logger.error(f'OEM Data not found, fetched_oem_data was empty')
         return {
             "status": "REJECTED",
             "code": "20_OEM_DATA_NOT_FOUND",
             "message": "OEM data not found"
         }
     if 'threshold' not in fetched_oem_data:
-        logging.error(f'OEM Data was not found')
+        logger.error(f'OEM Data was not found')
         return {
             "status": "REJECTED",
             "code": "20_OEM_DATA_NOT_FOUND",
@@ -139,7 +140,7 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
 
     # if dealer is not available then find nearest dealer
     if not dealer_available:
-        logging.info('dealer not available, trying to find nearest dealer')
+        logger.info('dealer not available, trying to find nearest dealer')
         lat, lon = get_customer_coordinate(obj['adf']['prospect']['customer']['contact']['address']['postalcode'])
         nearest_vendor = db_helper_session.fetch_nearest_dealer(oem=make,
                                                                 lat=lat,
@@ -147,10 +148,10 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
         obj['adf']['prospect']['vendor'] = nearest_vendor
         if nearest_vendor != {}:
             dealer_available = True
-            logging.info("New Dealer Found!")
+            logger.info("New Dealer Found!")
         else:
             dealer_available: False
-            logging.info("No new dealer found")
+            logger.info("No new dealer found")
 
     # enrich the lead
     model_input = get_enriched_lead_json(obj)
@@ -221,9 +222,9 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
         try:
             res = sqs_helper_session.send_message(message)
         except Exception as expt:
-            logging.error(f'message could not be sent!')
+            logger.error(f'message could not be sent!')
             raise expt
-        logging.info(f'message sent successfully!')
+        logger.info(f'message sent successfully!')
 
     else:
         message = {
@@ -240,9 +241,9 @@ async def submit(file: Request, apikey: APIKey = Depends(get_api_key)):
         try:
             res = sqs_helper_session.send_message(message)
         except Exception as expt:
-            logging.error(f'message could not be sent!')
+            logger.error(f'message could not be sent!')
             raise expt
-        logging.info(f'message sent successfully!')
+        logger.info(f'message sent successfully!')
     time_taken = (int(time.time() * 1000.0) - start)
 
     response_message = f"{result} Response Time : {time_taken} ms"

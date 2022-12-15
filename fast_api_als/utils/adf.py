@@ -3,13 +3,14 @@ from jsonschema import validate, draft7_format_checker
 import logging
 from uszipcode import SearchEngine
 import re
+from ..main import custom_logger
 
-logging.basicConfig(filename='adf.log', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 # ISO8601 datetime regex
 regex = r'^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\.[0-9]+)?(Z|[+-](?:2[0-3]|[01][0-9]):[0-5][0-9])?$'
 match_iso8601 = re.compile(regex).match
 zipcode_search = SearchEngine()
+logger = custom_logger.getLogger(__name)
 
 
 def process_before_validating(input_json):
@@ -43,7 +44,7 @@ def parse_xml(adf_xml):
         obj = xmltodict.parse(adf_xml)
         return obj
     except Exception as e:
-        logging.info(f'The adf_xml could not be parsed')
+        logger.info(f'The adf_xml could not be parsed')
         raise e
 
 
@@ -71,7 +72,7 @@ def validate_adf_values(input_json):
     # zipcode validation
     res = zipcode_search.by_zipcode(zipcode)
     if not res:
-        logging.error(f'The zipcode {zipcode} is invalid')
+        logger.error(f'The zipcode {zipcode} is invalid')
         return {"status": "REJECTED", "code": "4_INVALID_ZIP", "message": "Invalid Postal Code"}
 
     # check for TCPA Consent
@@ -80,12 +81,12 @@ def validate_adf_values(input_json):
         if id['@source'] == 'TCPA_Consent' and id['#text'].lower() == 'yes':
             tcpa_consent = True
     if not email and not tcpa_consent:
-        logging.error(f'The contact method with email {email} is missing TCPA consent')
+        logger.error(f'The contact method with email {email} is missing TCPA consent')
         return {"status": "REJECTED", "code": "7_NO_CONSENT", "message": "Contact Method missing TCPA consent"}
 
     # request date in ISO8601 format
     if not validate_iso8601(input_json['requestdate']):
-        logging.error(f'The DateTime format is invalid')
+        logger.error(f'The DateTime format is invalid')
         return {"status": "REJECTED", "code": "3_INVALID_FIELD", "message": "Invalid DateTime"}
 
     return {"status": "OK"}

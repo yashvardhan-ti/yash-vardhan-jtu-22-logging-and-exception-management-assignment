@@ -7,13 +7,14 @@ from fast_api_als.constants import (
     ALS_DATA_TOOL_PHONE_VERIFY_METHOD,
     ALS_DATA_TOOL_SERVICE_URL,
     ALS_DATA_TOOL_REQUEST_KEY)
+from ..main import custom_logger
 
 """
 How can you write log to understand what's happening in the code?
 You also trying to undderstand the execution time factor.
 """
 
-logging.basicConfig(filename='verify_phone_and_email.log', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+logger = custom_logger.getLogger(__main__)
 
 zero_time = time.time()
 
@@ -25,7 +26,7 @@ async def call_validation_service(url: str, topic: str, value: str, data: dict) 
 
     r = response.json()
     data[topic] = r
-    logging.info(f'given {topic} with the value {value} is validated | time of exceution is {time.time() - zero_time}')
+    logger.info(f'given {topic} with the value {value} is validated | time of exceution is {time.time() - zero_time}')
     
 
 async def verify_phone_and_email(email: str, phone_number: str) -> bool:
@@ -54,7 +55,7 @@ async def verify_phone_and_email(email: str, phone_number: str) -> bool:
         if data["phone"]["DtResponse"]["Result"][0]["IsValid"] == "True":
             phone_valid = True
     if "email" in data or "phone" in data:
-        logging.info(f'email: {email} and phone number: {phone} is verified | time of execution is {time.time() - zero_time}')
+        logger.info(f'email: {email} and phone number: {phone} is verified | time of execution is {time.time() - zero_time}')
     else:
-        logging.error(f'email: {email} and phone number: {phone} not verified | time of execution is {time.time() - zero_time}')
+        logger.error(f'email: {email} and phone number: {phone} not verified | time of execution is {time.time() - zero_time}')
     return email_valid | phone_valid
